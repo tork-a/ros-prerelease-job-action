@@ -36,7 +36,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: Run prerelease test
-        uses: tork-a@ros-prerelease-job-action@main
+        uses: tork-a/ros-prerelease-job-action@main
         with:
           ros_distro_name: ${{matrix.ROS_DISTRO_NAME}}
 ```
