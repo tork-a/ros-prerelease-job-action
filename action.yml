@@ -1,0 +1,67 @@
+name: 'ROS prerelease test'
+author: 'Tokyo Opensource Robotics Developer'
+description: 'ROS prerelease test using devel jobs. It builds the code and runs the tests to check for regressions.'
+inputs:
+  ros_distro_name:
+    description: 'Target ROS Distro'
+    required: true
+    default: melodic
+  arch:
+    description: 'Target Archtecture'
+    required: none
+    default: amd64
+runs:
+  using: "composite"
+  steps:
+    - name: install the latest released version of ros_buildfarm
+      run: |
+        sudo apt install -q -y python3-setuptools python3-pip
+        sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+        sudo -H pip3 install wheel
+        sudo -H pip3 install empy
+        sudo -H pip3 install ros_buildfarm
+      shell: bash
+    - name: checkout catkin for catkin_test_results script
+      run: git clone https://github.com/ros/catkin /tmp/catkin
+      shell: bash
+    - name: use the code already checked out by Github Action
+      run: mkdir -p /tmp/devel_job/ws/src; cp -R $GITHUB_WORKSPACE /tmp/devel_job/ws/src/
+      shell: bash
+    - name: use the code already checked out by Github Action
+      run: |
+        set -x
+        ls -al $GITHUB_WORKSPACE
+        env | grep GITHUB
+        find /tmp/devel_job
+      shell: bash
+    - name: generate the script to run a pre-release job for that target and repo
+      run: |
+        set -x
+        case ${{ inputs.ros_distro_name }} in
+          "indigo")  export ROS_DISTRO_NAME=indigo  OS_NAME=ubuntu OS_CODE_NAME=trusty;;
+          "kinetic") export ROS_DISTRO_NAME=kinetic OS_NAME=ubuntu OS_CODE_NAME=xenial;;
+          "melodic") export ROS_DISTRO_NAME=melodic OS_NAME=ubuntu OS_CODE_NAME=bionic;;
+          "noetic")  export ROS_DISTRO_NAME=noetic  OS_NAME=ubuntu OS_CODE_NAME=focal;;
+        esac
+        export ARCH=${{ inputs.arch }}
+        if [ ${{ inputs.ros_distro_name }} == "indigo" ]; then
+          export INDEX_URL=https://raw.githubusercontent.com/ros-infrastructure/ros_buildfarm_config/6a93d17/index.yaml
+        else
+          export INDEX_URL=https://raw.githubusercontent.com/ros-infrastructure/ros_buildfarm_config/production/index.yaml
+        fi
+        generate_prerelease_script.py $INDEX_URL $ROS_DISTRO_NAME default $OS_NAME $OS_CODE_NAME $ARCH  --output-dir /tmp/devel_job
+      shell: bash
+    - name: run the actual job which involves Docker
+      run: |
+        set -x
+        mkdir -p ~/.ccache
+        cd /tmp/devel_job
+        sh ./prerelease.sh -y
+      shell: bash
+    - name: get summary of test results
+      run: /tmp/catkin/bin/catkin_test_results /tmp/devel_job/ws/test_results --all
+      shell: bash
+
+branding:
+  icon: 'wind'
+  color: 'green'

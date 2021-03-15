@@ -1,0 +1,28 @@
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - build: kinetic_amd64
+            ROS_DISTRO_NAME : kinetic
+          - build: melodic_amd64
+            ROS_DISTRO_NAME : melodic
+
+    name: ${{ matrix.build }}
+
+    steps:
+      - name: Chcekout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - name: Chcekout dummy package
+        run: git clone --depth=1 https://github.com/ros/ros_tutorials $GITHUB_WORKSPACE/ros_tutorials
+      - name: Run prerelease test
+        uses: ./
+        with:
+          ros_distro_name: ${{matrix.ROS_DISTRO_NAME}}
+
